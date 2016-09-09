@@ -42,6 +42,8 @@ class Client(object):
             for sock in rlist:
                 # incoming message from server ready to read
                 if sock == self.socket:
+                    #hacky way of saying ReceiveAll 200 bytes
+                    #while data.length() < 200: #fix to match bytes
                     data = sock.recv(RECV_BUFFER)
                     # todo: error handling according to spec
                     if not data:
@@ -55,7 +57,7 @@ class Client(object):
                 else:
                     #user is sending a message
                     msg = sys.stdin.readline()
-                    self.socket.send(msg)
+                    self.socket.sendall(msg)
                     sys.stdout.write(utils.CLIENT_MESSAGE_PREFIX)
                     sys.stdout.flush()
 
