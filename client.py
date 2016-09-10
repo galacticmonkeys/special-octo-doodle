@@ -48,7 +48,7 @@ class Client(object):
             #self.socket.sendall(message) #send client name
             self.socket.sendall(pad_message(message)) #send client name
         except:
-            print(utils.CLIENT_CANNOT_CONNECT.format(self.address, self.port))
+            sys.stdout.write(utils.CLIENT_CANNOT_CONNECT.format(self.address, self.port) + "\n")
             sys.exit()
 
         sys.stdout.write(utils.CLIENT_MESSAGE_PREFIX)
@@ -71,7 +71,7 @@ class Client(object):
                    
                     # todo: error handling according to spec
                     if not data: #socket is broken
-                        print(utils.CLIENT_SERVER_DISCONNECTED.format(self.address,self.port))
+                        sys.stdout.write(utils.CLIENT_SERVER_DISCONNECTED.format(self.address,self.port) + "\n")
                         sys.exit()
                     else: 
                         data = data.rstrip(' ')
