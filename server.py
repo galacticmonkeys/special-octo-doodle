@@ -7,7 +7,7 @@ import utils
 args = sys.argv
 
 if len(args) != 2:
-	print "Please supply a port."
+	print "Please supply the correct arguments."
 	sys.exit()
 
 #constants
@@ -80,7 +80,7 @@ def command_handler(currsock, message):
 		tosend = ""
 		for key in channels_list.iterkeys():
 			tosend += key + "\n"
-		currsock.send(tosend.rstrip("\n"))
+		currsock.sendall(pad_message(tosend.rstrip("\n")))
 		#print(channels_list)
 	elif (command == "/join"):
 		if len(message.split()) > 1:
@@ -97,10 +97,10 @@ def command_handler(currsock, message):
 				broadcast(currsock, utils.SERVER_CLIENT_JOINED_CHANNEL.format(str(socket_list[currsock])))
 			else:
 				#channel doesn't exist
-				currsock.sendall(utils.SERVER_NO_CHANNEL_EXISTS.format(channel_name))
+				currsock.sendall(pad_message(utils.SERVER_NO_CHANNEL_EXISTS.format(channel_name)))
 		else:
 			#not enough arguments
-			currsock.sendall(utils.SERVER_JOIN_REQUIRES_ARGUMENT)
+			currsock.sendall(pad_message(utils.SERVER_JOIN_REQUIRES_ARGUMENT))
 		#print(channels_list)
 	elif (command == "/create"):
 		if len(message.split()) > 1:
@@ -117,13 +117,13 @@ def command_handler(currsock, message):
 				broadcast(currsock, utils.SERVER_CLIENT_JOINED_CHANNEL.format(str(socket_list[currsock])))
 			else:
 				#Error: channel already exists.
-				currsock.sendall(utils.SERVER_CHANNEL_EXISTS.format(channel_name))
+				currsock.sendall(pad_message(utils.SERVER_CHANNEL_EXISTS.format(channel_name)))
 		else:
 			#not enough arguments
-			currsock.sendall(utils.SERVER_CREATE_REQUIRES_ARGUMENT)
+			currsock.sendall(pad_message(utils.SERVER_CREATE_REQUIRES_ARGUMENT))
 		#print(channels_list)
 	else:
-		currsock.sendall(utils.SERVER_INVALID_CONTROL_MESSAGE.format(command))
+		currsock.sendall(pad_message(utils.SERVER_INVALID_CONTROL_MESSAGE.format(command)))
 
 #start the server
 while True:
@@ -149,7 +149,7 @@ while True:
 					command_handler(s, data)
 				# check to make sure the socket belongs to a channel
 				elif not in_channel(s):
-					s.sendall(utils.SERVER_CLIENT_NOT_IN_CHANNEL)
+					s.sendall(pad_message(utils.SERVER_CLIENT_NOT_IN_CHANNEL))
 				else:
 					broadcast(s, "[" + str(socket_list[s]) + "] " + data)
 			else:

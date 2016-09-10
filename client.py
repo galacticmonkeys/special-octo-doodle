@@ -18,18 +18,18 @@ def pad_message(message):
 
 # blocking recvall. recv all 200 characters
 def recvall(sock, count):
-    buf = 'BUFFERSTRT'
+    buf = ''
     while count:
-        print('enter while loop')
+        #print('enter while loop')
         newbuf = sock.recv(count) #it's blcoking!
         if not newbuf: 
-            print('no new data')
+            #print('no new data')
             return None
         buf += newbuf
-        print(buf)
         count -= len(newbuf)
-        print(count)
-    print('got out of whileloop')
+        #print(count)
+    #print('got out of whileloop')
+    #print(buf)
     return buf
 
 
@@ -64,8 +64,8 @@ class Client(object):
                 # incoming message from server ready to read
                 if sock == self.socket:
                     #receive all 200 char
-                    #data = recvall(sock, 200)
-                    data = sock.recv(200)
+                    data = recvall(sock, 200)
+                    #data = sock.recv(200)
                     data = data.rstrip('a')
                     #print('i got out of the loop')
                    
