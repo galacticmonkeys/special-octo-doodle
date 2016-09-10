@@ -18,7 +18,7 @@ SERVER_SOCKET = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 #global variables
 channels_list = {} # mapping of channels to sockets
 socket_list = {} # mapping of socket to string username
-incompete_msgs = {} #mapping of socket to incomplete messages
+incomplete_msgs = {} #mapping of socket to incomplete messages
 
 #bind to the port
 SERVER_SOCKET.bind((HOST,int(float(PORT))))
@@ -30,7 +30,7 @@ SERVER_SOCKET.listen(5)
 socket_list.update({SERVER_SOCKET: "server"})
 
 def pad_message(message):
-	return message.ljust(200, 'a')
+	return message.ljust(200, ' ')
 
 
 # checks if socket is in an existing channel. 
@@ -81,6 +81,8 @@ def command_handler(currsock, message):
 		for key in channels_list.iterkeys():
 			tosend += key + "\n"
 		currsock.sendall(pad_message(tosend.rstrip("\n")))
+		#print(pad_message(tosend.rstrip("\n")))
+
 		#print(channels_list)
 	elif (command == "/join"):
 		if len(message.split()) > 1:
@@ -130,28 +132,57 @@ while True:
     # get the list sockets which are ready to be read, written to, or exceptional condition
 	rlist,wlist,xlist = select.select(socket_list,[],[])
 
+	#print(rlist)
 	for s in rlist:
 		# new connections
 		if s == SERVER_SOCKET:
 			clientsocket,addr = SERVER_SOCKET.accept()
-			clientname = clientsocket.recv(200) #take me out of here
-			incompete_msgs.update({clientsocket: ""})
-			socket_list.update({clientsocket: clientname.rstrip('a')}) #take me out of here
+			#incomplete_msgs.update({clientsocket: ""}) #add to incomplete messages
+			#clientname = clientsocket.recv(200)
+			#socket_list.update({clientsocket: clientname.rstrip('a')}) 
+			socket_list.update({clientsocket: ""}) #add to socket list with a blank name
+
 		else:
-			# receive data from exisiting connections
-			data = s.recv(200)
-			data = data.rstrip('a')
+			# receive whatever data you can from exisiting connections
+			data = s.recv(utils.MESSAGE_LENGTH)
+			
 			if data:
+				partial_msg_string = ""
+				if s in incomplete_msgs: 
+					partial_msg_string = incomplete_msgs[s]
+				data = partial_msg_string + data
+				if len(data) < utils.MESSAGE_LENGTH:
+					incomplete_msgs[s] = data
+					#print('filled in incomplete message')
+					continue
+				else:
+					incomplete_msgs[s] = data[utils.MESSAGE_LENGTH:] #save remaining
+					data = data[:utils.MESSAGE_LENGTH] #grab ahead
+					#print('completed message')
+
+				#print(len(data))
+				data = data.rstrip(' ')
 				#something in the socket
 
-				#handles commands
-				if (str(data)[0] == "/"):
-					command_handler(s, data)
-				# check to make sure the socket belongs to a channel
-				elif not in_channel(s):
-					s.sendall(pad_message(utils.SERVER_CLIENT_NOT_IN_CHANNEL))
+				#if it doesn't ahve a name, it must be first data sent
+				if socket_list[s] == "":
+					socket_list[s] = data
+					#print('i got the name')
+				elif not data: 
+					continue
+					#print('no data')
 				else:
-					broadcast(s, "[" + str(socket_list[s]) + "] " + data)
+					#print("name is" + socket_list[s])
+					#print(data)
+					#handles commands
+					if (data[0] == "/"):
+						#print('i joined the channel')
+						command_handler(s, data)
+					# check to make sure the socket belongs to a channel
+					elif not in_channel(s):
+						s.sendall(pad_message(utils.SERVER_CLIENT_NOT_IN_CHANNEL))
+					else:
+						broadcast(s, "[" + str(socket_list[s]) + "] " + data)
 			else:
 				#broken socket. remove the client
 				broadcast(s, utils.SERVER_CLIENT_LEFT_CHANNEL.format(socket_list[s]))

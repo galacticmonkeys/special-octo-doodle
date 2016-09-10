@@ -14,7 +14,7 @@ if len(args) != 4:
 
 # pads messages to 200 characters with spaces
 def pad_message(message):
-    return message.ljust(200, 'a')
+    return message.ljust(200, ' ')
 
 # blocking recvall. recv all 200 characters
 def recvall(sock, count):
@@ -66,16 +66,19 @@ class Client(object):
                     #receive all 200 char
                     data = recvall(sock, 200)
                     #data = sock.recv(200)
-                    data = data.rstrip('a')
+                    
                     #print('i got out of the loop')
                    
                     # todo: error handling according to spec
-                    if not data:
+                    if not data: #socket is broken
                         print(utils.CLIENT_SERVER_DISCONNECTED.format(self.address,self.port))
                         sys.exit()
                     else: 
+                        data = data.rstrip(' ')
                         sys.stdout.write(utils.CLIENT_WIPE_ME)
-                        sys.stdout.write("\r" + data + "\n")
+                        sys.stdout.write("\r")
+                        if data:  #sending over blank messages
+                            sys.stdout.write(data + "\n")
                         sys.stdout.write(utils.CLIENT_MESSAGE_PREFIX)
                         sys.stdout.flush()
                 else:
