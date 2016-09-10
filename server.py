@@ -11,7 +11,6 @@ if len(args) != 2:
 	sys.exit()
 
 #constants
-RECV_BUFFER = 200
 HOST = "localhost"
 PORT = args[1]
 SERVER_SOCKET = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -19,7 +18,7 @@ SERVER_SOCKET = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 #global variables
 channels_list = {} # mapping of channels to sockets
 socket_list = {} # mapping of socket to string username
-
+incompete_msgs = {} #mapping of socket to incomplete messages
 
 #bind to the port
 SERVER_SOCKET.bind((HOST,int(float(PORT))))
@@ -29,6 +28,10 @@ SERVER_SOCKET.listen(5)
 
 #add SERVER_SOCKET into list of readable connections
 socket_list.update({SERVER_SOCKET: "server"})
+
+def pad_message(message):
+	return message.ljust(200, 'a')
+
 
 # checks if socket is in an existing channel. 
 # if it exists, it will return the first channel name where its contained
@@ -58,22 +61,27 @@ def broadcast(currsock, msg):
         if sock != SERVER_SOCKET and sock != currsock:
             try:
                 # server sends this sock this message, stripping off whitespace
-                sock.send(msg.rstrip() + "\n")
+                sock.sendall(pad_message(msg))
             except:
                 # exception has occured. broken socket
                 sock.close()
-                del socket_list[sock]
+                remove_from_channel(sock)
+                if sock in socket_list:
+                    del socket_list[sock]
 
 # removes socket from existing channel and adds it to the new channel
 # def move_socket(sock, channel):
+
 
 #handles commands. assumes strings received with "/"
 def command_handler(currsock, message):
 	command = message.split()[0]
 	if (command == "/list"):
+		tosend = ""
 		for key in channels_list.iterkeys():
-			currsock.send(key + "\n")
-		print(channels_list)
+			tosend += key + "\n"
+		currsock.send(tosend.rstrip("\n"))
+		#print(channels_list)
 	elif (command == "/join"):
 		if len(message.split()) > 1:
 			channel_name = message.split()[1]
@@ -89,11 +97,11 @@ def command_handler(currsock, message):
 				broadcast(currsock, utils.SERVER_CLIENT_JOINED_CHANNEL.format(str(socket_list[currsock])))
 			else:
 				#channel doesn't exist
-				currsock.send(utils.SERVER_NO_CHANNEL_EXISTS.format(channel_name) + "\n")
+				currsock.sendall(utils.SERVER_NO_CHANNEL_EXISTS.format(channel_name))
 		else:
 			#not enough arguments
-			currsock.send(utils.SERVER_JOIN_REQUIRES_ARGUMENT + "\n")
-		print(channels_list)
+			currsock.sendall(utils.SERVER_JOIN_REQUIRES_ARGUMENT)
+		#print(channels_list)
 	elif (command == "/create"):
 		if len(message.split()) > 1:
 			channel_name = message.split()[1]
@@ -109,13 +117,13 @@ def command_handler(currsock, message):
 				broadcast(currsock, utils.SERVER_CLIENT_JOINED_CHANNEL.format(str(socket_list[currsock])))
 			else:
 				#Error: channel already exists.
-				currsock.send(utils.SERVER_CHANNEL_EXISTS.format(channel_name) + "\n")
+				currsock.sendall(utils.SERVER_CHANNEL_EXISTS.format(channel_name))
 		else:
 			#not enough arguments
-			currsock.send(utils.SERVER_CREATE_REQUIRES_ARGUMENT + "\n")
-		print(channels_list)
+			currsock.sendall(utils.SERVER_CREATE_REQUIRES_ARGUMENT)
+		#print(channels_list)
 	else:
-		currsock.send(utils.SERVER_INVALID_CONTROL_MESSAGE.format(command) + "\n")
+		currsock.sendall(utils.SERVER_INVALID_CONTROL_MESSAGE.format(command))
 
 #start the server
 while True:
@@ -126,11 +134,13 @@ while True:
 		# new connections
 		if s == SERVER_SOCKET:
 			clientsocket,addr = SERVER_SOCKET.accept()
-			clientname = clientsocket.recv(RECV_BUFFER)
-			socket_list.update({clientsocket: clientname})
+			clientname = clientsocket.recv(200) #take me out of here
+			incompete_msgs.update({clientsocket: ""})
+			socket_list.update({clientsocket: clientname.rstrip('a')}) #take me out of here
 		else:
 			# receive data from exisiting connections
-			data = s.recv(RECV_BUFFER)
+			data = s.recv(200)
+			data = data.rstrip('a')
 			if data:
 				#something in the socket
 
@@ -139,11 +149,13 @@ while True:
 					command_handler(s, data)
 				# check to make sure the socket belongs to a channel
 				elif not in_channel(s):
-					s.send(utils.SERVER_CLIENT_NOT_IN_CHANNEL + "\n")
+					s.sendall(utils.SERVER_CLIENT_NOT_IN_CHANNEL)
 				else:
 					broadcast(s, "[" + str(socket_list[s]) + "] " + data)
 			else:
 				#broken socket. remove the client
-				broadcast(s, utils.SERVER_CLIENT_LEFT_CHANNEL.format(socket_list[s])) 
+				broadcast(s, utils.SERVER_CLIENT_LEFT_CHANNEL.format(socket_list[s]))
+				remove_from_channel(s)
 				if s in socket_list:
 					del socket_list[s]
+				s.close()
